@@ -5,6 +5,7 @@ import express, { type Request, type Response } from "express";
 import { ContentModal, LinkModal, UserModal } from "./db.js";
 import jwt from "jsonwebtoken";
 import { hashFn, userAuth } from "./middleware.js";
+import * as z from "zod";
 
 let JWT_SECRET = process.env.JWT_SECRET;
 
@@ -13,13 +14,22 @@ app.use(express.json());
 
 app.post("/api/v1/signup", function (req: Request, res: Response) {
   // password hashing
-  // zod validation
-  // password validations
   // error handling
-  let { username, password } = req.body;
+  let Data = z.object({
+    password: z
+      .string()
+      .min(8)
+      .max(20)
+      .regex(/[A-Z]/)
+      .regex(/[a-z]/)
+      .regex(/[0-9]/)
+      .regex(/[!@#$%^&*]/),
+    username: z.string().min(3).max(20),
+  });
+  let parsedDetails = Data.parse(req.body);
   UserModal.create({
-    username,
-    password,
+    username: parsedDetails.username,
+    password: parsedDetails.password,
   });
   res.json({
     message: "Done!",
@@ -27,16 +37,28 @@ app.post("/api/v1/signup", function (req: Request, res: Response) {
 });
 
 app.post("/api/v1/signin", async function (req: Request, res: Response) {
-  // zod validations
-  // verify user
   // error handling
-  let { username, password } = req.body;
+  let Data = z.object({
+    password: z
+      .string()
+      .min(8)
+      .max(20)
+      .regex(/[A-Z]/)
+      .regex(/[a-z]/)
+      .regex(/[0-9]/)
+      .regex(/[!@#$%^&*]/),
+    username: z.string().min(3).max(20),
+  });
+  let parsedDetails = Data.parse(req.body);
   let response = await UserModal.findOne({
-    username,
-    password,
+    username: parsedDetails.username,
+    password: parsedDetails.password,
   });
   if (response) {
-    let token = jwt.sign({ username: username }, JWT_SECRET as string);
+    let token = jwt.sign(
+      { username: parsedDetails.username },
+      JWT_SECRET as string,
+    );
     res.json({
       message: token,
     });
@@ -48,17 +70,21 @@ app.post("/api/v1/signin", async function (req: Request, res: Response) {
 });
 
 app.post("/api/v1/content", userAuth, function (req: Request, res: Response) {
-  // zod validation
   // error handling
-  // tags reference
+  let Data = z.object({
+    title: z.string().min(5),
+    link: z.string().min(5),
+    type: z.string().min(3),
+    tags: z.array(z.string()),
+  });
   let userId = req.userId as string;
-  let { title, link, type, tags } = req.body;
+  let parsedDetails = Data.parse(req.body);
   ContentModal.create({
-    title,
-    link,
-    type,
-    tags,
-    userId,
+    title: parsedDetails.title,
+    link: parsedDetails.link,
+    type: parsedDetails.type,
+    tags: parsedDetails.tags,
+    userId: userId,
   });
   res.json({
     message: "Content Added",
@@ -86,83 +112,99 @@ app.delete(
   userAuth,
   async function (req: Request, res: Response) {
     // error handling
-    // zod validation
+    let Data = z.object({
+      contentId: z.string(),
+    });
     let userId = req.userId;
-    let contentId = req.body.contentId;
+    let parsedDetails = Data.parse(req.body);
     let response = await ContentModal.findOne({
-      _id: contentId,
+      _id: parsedDetails.contentId,
     });
     if (!response) {
-      res.json({
+      res.status(400).json({
         message: "Invalid content id!",
       });
       return;
     }
     if (response.userId) {
       if (userId != response.userId.toString()) {
-        res.json({
+        res.status(403).json({
           message: "This is not your content!",
         });
         return;
       }
       await ContentModal.deleteOne({
-        _id: contentId,
+        _id: parsedDetails.contentId,
       });
-      res.json({
+      res.status(200).json({
         message: "Content deleted successfully!",
       });
     }
   },
 );
 
-app.post("/api/v1/brain/share", userAuth, async function(req:Request, res:Response){
+app.post(
+  "/api/v1/brain/share",
+  userAuth,
+  async function (req: Request, res: Response) {
     // error handling
-    // zod validation
+    let Data = z.boolean();
     let userId = req.userId as string;
-    let share = req.body.share;
+    let parsedBool = Data.parse(req.body.share)
     let hash = hashFn();
-    if(share != true){
-        let response = await LinkModal.findOne({
-            userId
-        })
-        if(response){
-            await LinkModal.deleteOne({userId})
-            res.json({
-                message: "Stopped Sharing!"
-            })
-            return;
-        }else{
-            res.json({
-                message: "You did't shared your brain!"
-            })
-            return
-        }
-    }
-    await LinkModal.create({
-        userId: userId,
-        hash: hash
-    })
-    res.json({
-        link: hash
-    })
-})
-
-app.get("/api/v1/brain/:shareLink", async function (req:Request, res:Response){
-    // error handling
-    let shareLink = req.params.shareLink as string;
-    let linkData = await LinkModal.findOne({hash:shareLink})
-    if(!linkData){
-        res.json({
-            message:"Invalid share id!"
+    if (parsedBool != true) {
+      let response = await LinkModal.findOne({
+        userId,
+      });
+      if (response) {
+        await LinkModal.deleteOne({ userId });
+        res.status(200).json({
+          message: "Stopped Sharing!",
         });
         return;
+      } else {
+        res.status(400).json({
+          message: "You did't shared your brain!",
+        });
+        return;
+      }
     }
-    if(linkData.userId){
-        let content = await ContentModal.find({userId: linkData.userId}).populate("userId", "username")
-        res.json({
-            data:[content]
-        })
+    await LinkModal.create({
+      userId: userId,
+      hash: hash,
+    });
+    res.status(200).json({
+      link: hash,
+    });
+  },
+);
+
+app.get(
+  "/api/v1/brain/:shareLink",
+  async function (req: Request, res: Response) {
+    // error handling
+    let Data = z.string();
+    let shareLink = Data.parse(req.params.shareLink);
+    let linkData = await LinkModal.findOne({ hash: shareLink });
+    if (!linkData) {
+      res.status(404).json({
+        message: "Invalid share id!",
+      });
+      return;
     }
-})
+    if (linkData.userId) {
+      let user = await UserModal.findOne({ _id: linkData.userId });
+      let content = await ContentModal.find({
+        userId: linkData.userId,
+      });
+      res.status(200).json({
+        data: {
+          username: user?.username,
+          content: content,
+        },
+      });
+    }
+  },
+);
 
 app.listen(3000);
