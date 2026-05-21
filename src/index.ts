@@ -147,4 +147,22 @@ app.post("/api/v1/brain/share", userAuth, async function(req:Request, res:Respon
     })
 })
 
+app.get("/api/v1/brain/:shareLink", async function (req:Request, res:Response){
+    // error handling
+    let shareLink = req.params.shareLink as string;
+    let linkData = await LinkModal.findOne({hash:shareLink})
+    if(!linkData){
+        res.json({
+            message:"Invalid share id!"
+        });
+        return;
+    }
+    if(linkData.userId){
+        let content = await ContentModal.find({userId: linkData.userId}).populate("userId", "username")
+        res.json({
+            data:[content]
+        })
+    }
+})
+
 app.listen(3000);
