@@ -55,7 +55,10 @@ app.post("/api/v1/signin", async function (req: Request, res: Response) {
     username: parsedDetails.username,
   });
   if (response?.password) {
-    let decodedPass = await bcrypt.compare(parsedDetails.password, response.password);
+    let decodedPass = await bcrypt.compare(
+      parsedDetails.password,
+      response.password,
+    );
     if (decodedPass) {
       let token = jwt.sign(
         { username: parsedDetails.username },
@@ -106,7 +109,7 @@ app.get(
       "username",
     );
     res.status(200).json({
-      message: response,
+      content: response,
     });
   },
 );
