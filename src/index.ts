@@ -2,10 +2,9 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express, { type Request, type Response } from "express";
-import { ContentModal, UserModal } from "./db.js";
+import { ContentModal, LinkModal, UserModal } from "./db.js";
 import jwt from "jsonwebtoken";
-import { userAuth } from "./middleware.js";
-import type { ObjectId } from "mongoose";
+import { hashFn, userAuth } from "./middleware.js";
 
 let JWT_SECRET = process.env.JWT_SECRET;
 
@@ -115,5 +114,37 @@ app.delete(
     }
   },
 );
+
+app.post("/api/v1/brain/share", userAuth, async function(req:Request, res:Response){
+    // error handling
+    // zod validation
+    let userId = req.userId as string;
+    let share = req.body.share;
+    let hash = hashFn();
+    if(share != true){
+        let response = await LinkModal.findOne({
+            userId
+        })
+        if(response){
+            await LinkModal.deleteOne({userId})
+            res.json({
+                message: "Stopped Sharing!"
+            })
+            return;
+        }else{
+            res.json({
+                message: "You did't shared your brain!"
+            })
+            return
+        }
+    }
+    await LinkModal.create({
+        userId: userId,
+        hash: hash
+    })
+    res.json({
+        link: hash
+    })
+})
 
 app.listen(3000);

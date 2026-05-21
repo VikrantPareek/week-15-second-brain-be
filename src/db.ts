@@ -18,9 +18,9 @@ let contentSchema = new Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", unique:false},
 });
 
-let tagSchema = new Schema({
-  title: String,
-});
+// let tagSchema = new Schema({
+//   title: String,
+// });
 
 let linkSchema = new Schema({
   hash: { type: String, unique: true },
@@ -28,6 +28,6 @@ let linkSchema = new Schema({
 });
 
 export let UserModal = mongoose.model("User", userSchema)
-export let TagModal = mongoose.model("Tag", tagSchema)
+// export let TagModal = mongoose.model("Tag", tagSchema)
 export let ContentModal = mongoose.model("Content", contentSchema)
 export let LinkModal = mongoose.model("Link", linkSchema)

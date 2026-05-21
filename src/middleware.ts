@@ -20,12 +20,21 @@ export async function userAuth(
   let response = await UserModal.findOne({
     username: decodedUser.username,
   });
-  if(!response){
-     res.json({
+  if (!response) {
+    res.json({
       message: "Incorrect Creds!",
     });
     return;
   }
   req.userId = response._id.toString();
   next();
+}
+
+export function hashFn() {
+  let str = "qwertyuiopasdfghjklzxcvbnm";
+  let hash: string = "";
+  for (let i = 0; i < 10; i++) {
+    hash += str[Math.floor(Math.random() * 26)];
+  }
+  return hash;
 }
