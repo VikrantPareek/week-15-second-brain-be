@@ -6,14 +6,14 @@ import { ContentModal, LinkModal, UserModal } from "./db.js";
 import jwt from "jsonwebtoken";
 import { hashFn, userAuth } from "./middleware.js";
 import * as z from "zod";
+import bcrypt from "bcrypt";
 
 let JWT_SECRET = process.env.JWT_SECRET;
 
 let app = express();
 app.use(express.json());
 
-app.post("/api/v1/signup", function (req: Request, res: Response) {
-  // password hashing
+app.post("/api/v1/signup", async function (req: Request, res: Response) {
   // error handling
   let Data = z.object({
     password: z
@@ -27,12 +27,13 @@ app.post("/api/v1/signup", function (req: Request, res: Response) {
     username: z.string().min(3).max(20),
   });
   let parsedDetails = Data.parse(req.body);
+  let hashPass = await bcrypt.hash(parsedDetails.password, 15);
   UserModal.create({
     username: parsedDetails.username,
-    password: parsedDetails.password,
+    password: hashPass,
   });
-  res.json({
-    message: "Done!",
+  res.status(200).json({
+    message: "You are signed up successfully!",
   });
 });
 
@@ -52,20 +53,23 @@ app.post("/api/v1/signin", async function (req: Request, res: Response) {
   let parsedDetails = Data.parse(req.body);
   let response = await UserModal.findOne({
     username: parsedDetails.username,
-    password: parsedDetails.password,
   });
-  if (response) {
-    let token = jwt.sign(
-      { username: parsedDetails.username },
-      JWT_SECRET as string,
-    );
-    res.json({
-      message: token,
-    });
-  } else {
-    res.json({
-      message: "Incorrect creds!",
-    });
+  if (response?.password) {
+    let decodedPass = await bcrypt.compare(parsedDetails.password, response.password);
+    if (decodedPass) {
+      let token = jwt.sign(
+        { username: parsedDetails.username },
+        JWT_SECRET as string,
+      );
+      res.status(200).json({
+        message: "You are signed in successfully!",
+        token,
+      });
+    } else {
+      res.status(400).json({
+        message: "Incorrect creds!",
+      });
+    }
   }
 });
 
@@ -86,7 +90,7 @@ app.post("/api/v1/content", userAuth, function (req: Request, res: Response) {
     tags: parsedDetails.tags,
     userId: userId,
   });
-  res.json({
+  res.status(200).json({
     message: "Content Added",
   });
 });
@@ -101,7 +105,7 @@ app.get(
       "userId",
       "username",
     );
-    res.json({
+    res.status(200).json({
       message: response,
     });
   },
@@ -150,7 +154,7 @@ app.post(
     // error handling
     let Data = z.boolean();
     let userId = req.userId as string;
-    let parsedBool = Data.parse(req.body.share)
+    let parsedBool = Data.parse(req.body.share);
     let hash = hashFn();
     if (parsedBool != true) {
       let response = await LinkModal.findOne({
