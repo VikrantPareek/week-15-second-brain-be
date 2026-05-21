@@ -13,9 +13,9 @@ let userSchema = new Schema({
 let contentSchema = new Schema({
   title: String,
   link: String,
-  type: Number,
-  tags: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tags" }],
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", unique: true },
+  type: String,
+  tags: [{type: String}],
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", unique:false},
 });
 
 let tagSchema = new Schema({
