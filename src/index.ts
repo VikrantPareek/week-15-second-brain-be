@@ -80,7 +80,7 @@ app.post("/api/v1/signin", async function (req: Request, res: Response) {
         response.password,
       );
       if (decodedPass) {
-        let token = jwt.sign({ username: response._id }, JWT_SECRET as string);
+        let token = jwt.sign({ _id: response._id }, JWT_SECRET as string);
         return res.status(200).json({
           message: "You are signed in successfully!",
           token,
