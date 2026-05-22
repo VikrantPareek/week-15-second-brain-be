@@ -9,25 +9,36 @@ export async function userAuth(
   res: Response,
   next: NextFunction,
 ) {
-  let Token = req.headers.token as string;
-  if (!Token) {
-    res.json({
-      message: "You are not signed up!",
+  try {
+    let Token = req.headers.token as string;
+    if (!Token) {
+      return res.status(401).json({
+        message: "You are not logged in!",
+      });
+    }
+    let decodedUser;
+    try {
+      decodedUser = jwt.verify(Token, JWT_SECRET) as { _id: string };
+    } catch (e) {
+      return res.status(401).json({
+        message: "Invalid token!",
+      });
+    }
+    let response = await UserModal.findOne({
+      _id: decodedUser._id,
     });
-    return;
-  }
-  let decodedUser = jwt.verify(Token, JWT_SECRET) as { username: string };
-  let response = await UserModal.findOne({
-    username: decodedUser.username,
-  });
-  if (!response) {
-    res.json({
-      message: "Incorrect Creds!",
+    if (!response) {
+      return res.status(400).json({
+        message: "Incorrect Creds!",
+      });
+    }
+    req.userId = response._id.toString();
+    next();
+  } catch (e) {
+    return res.status(500).json({
+      message: "Some server error!",
     });
-    return;
   }
-  req.userId = response._id.toString();
-  next();
 }
 
 export function hashFn() {
