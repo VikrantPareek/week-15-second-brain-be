@@ -7,11 +7,13 @@ import jwt from "jsonwebtoken";
 import { hashFn, userAuth } from "./middleware.js";
 import * as z from "zod";
 import bcrypt from "bcrypt";
+import cors from "cors";
 
 let JWT_SECRET = process.env.JWT_SECRET;
 
 let app = express();
 app.use(express.json());
+app.use(cors());
 
 app.post("/api/v1/signup", async function (req: Request, res: Response) {
   try {
